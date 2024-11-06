@@ -1,0 +1,29 @@
+telegram:
+  api_id:
+  api_hash:
+  group_id:
+  topic_id:
+  bot_token:
+  owner_id:
+  sudo_users:
+    -
+  support_bot:
+  announce_channel: 
+  drop_updates:
+  premium_channel_id:
+database:
+  schema:
+misc:
+  disable: 
+    - 
+pricing:
+  basic_plan_price:
+  basic_plan_days:
+  standard_plan_price:
+  standard_plan_days:
+  premium_plan_price:
+  premium_plan_days:
+affiliate:
+  minimum_commission_withdraw: 
+  affiliate_allowed:
+  withdrawal_allowed:

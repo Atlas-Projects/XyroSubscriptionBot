@@ -55,7 +55,7 @@ telegram:
     - <user_id_1>
     - <user_id_2>
   support_bot: <support_bot_username>       # Username of the support bot
-  announce_channel: <announce_channel_id>   # Channel ID for announcements
+  announce_channel: <announce_channel_username>   # Channel ID for announcements
   drop_updates: true                        # Enable or disable dropping updates
   premium_channel_id: <premium_channel_id>  # ID for premium users’ channel
 
@@ -81,6 +81,7 @@ affiliate:
 ```
 
 ### Step 4: Running the Bot
+Add the bot to Channel for which you want to sell subscription of as an admin.
 
 Once the configuration is complete, start the bot:
 ```bash
