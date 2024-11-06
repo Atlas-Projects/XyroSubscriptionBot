@@ -1,0 +1,14 @@
+# Bot related
+config.yml
+*config.yml
+*.db
+*.session
+*.session*
+**/__pycache__/
+.vscode/
+downloads/
+alembic.ini
+.python-version
+# Nix related
+.direnv/
+result
