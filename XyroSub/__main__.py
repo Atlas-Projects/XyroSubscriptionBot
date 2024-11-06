@@ -14,7 +14,7 @@ from XyroSub.modules.subscription import auto_send_invoices
 
 app = Client("XyroSubBot",
              workdir=Path.cwd(),
-             test_mode=True,
+             test_mode=False,
              api_id=API_ID,
              api_hash=API_HASH,
              bot_token=BOT_TOKEN,
