@@ -1,0 +1,35 @@
+[tool.poetry]
+name = "XyroSub"
+version = "0.1.0"
+description = ""
+authors = []
+license = "GPLv3"
+packages = [
+    {include = "XyroSub"}
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyrogram = { git = "https://github.com/KurimuzonAkuma/pyrogram.git", tag = "v2.1.32" }
+pycryptodomex = "3.17.0"
+pyyaml = "6.0.1"
+sqlalchemy = "2.0.29"
+alembic = "1.13.1"
+uuid7 = "^0.1.0"
+aiosqlite = "^0.20.0"
+asyncpg = "^0.29.0"
+aiomysql = "^0.2.0"
+tgcrypto = { git = "https://github.com/pyrogram/tgcrypto", tag = "v1.2.5" }
+cachetools = "5.5.0"
+psycopg2-binary = "^2.9.9"
+python-dateutil = "^2.9.0.post0"
+
+[tool.poetry.group.dev.dependencies]
+yapf = "^0.40.2"
+
+[tool.poetry.scripts]
+XyroSub = "XyroSub.__main__:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
