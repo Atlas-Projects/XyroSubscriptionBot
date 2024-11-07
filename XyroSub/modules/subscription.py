@@ -11,13 +11,14 @@ from pyrogram.types import (CallbackQuery, InlineKeyboardButton,
                             InlineKeyboardMarkup, Message, PreCheckoutQuery)
 from uuid_extensions import uuid7
 
-from XyroSub import (BASIC_PLAN_DAYS, BASIC_PLAN_PRICE, GROUP_ID,
+from XyroSub import (BASIC_PLAN_DAYS, BASIC_PLAN_PRICE, GROUP_ID, OWNER_ID,
                      PREMIUM_CHANNEL, PREMIUM_PLAN_DAYS, PREMIUM_PLAN_PRICE,
                      STANDARD_PLAN_DAYS, STANDARD_PLAN_PRICE, SUPPORT_BOT,
-                     TOPIC_ID, logger)
-from XyroSub.database.affiliate import (get_affiliate_settings,
-                                        get_affiliate_user,
-                                        get_commission_info, modify_earnings)
+                     TOPIC_ID, SUDO_USERS, logger)
+from XyroSub.database.affiliate import (get_affiliate_settings, get_affiliate_user,
+                                        add_referral, delete_affiliate_user,
+                                        get_commission_info, modify_earnings,
+                                        get_referral_by_short_id)
 from XyroSub.database.discount import (get_active_discount, get_discount_by_id,
                                        get_discount_usage, save_discount_usage,
                                        update_discount_usage)
@@ -144,12 +145,15 @@ async def affiliate_commission_helper(client: Client,
                                       user_id: int,
                                       previous_datetime: float,
                                       amount: float,
+                                      short_id: str,
                                       recurring: bool = False) -> None:
     affiliate_user = await get_affiliate_user(referred_user=user_id)
+    
     if affiliate_user and affiliate_user.affiliate_user != user_id:
         current_datetime = datetime.now(timezone.utc).timestamp()
         current_datetime = datetime.fromtimestamp(current_datetime)
         previous_datetime = datetime.fromtimestamp(previous_datetime)
+
         affiliate_amount = 0.0
         _, referred_users, _ = await get_commission_info(
             affiliate_user=affiliate_user.affiliate_user)
@@ -162,25 +166,32 @@ async def affiliate_commission_helper(client: Client,
         elif referred_users >= 10:
             affiliate_amount = amount * 0.15
 
-        await modify_earnings(
-            affiliate_user=affiliate_user.affiliate_user,
-            earnings=affiliate_amount,
-        )
+        existing_referral = await add_referral(affiliate_user.affiliate_user, user_id, affiliate_amount, short_id)
 
         if recurring:
+            await modify_earnings(
+                affiliate_user=affiliate_user.affiliate_user,
+                earnings=affiliate_amount,
+            )
             await client.send_message(
                 chat_id=affiliate_user.affiliate_user,
-                text=
-                f"A user you have referred: <code>{user_id}</code> renewed their subscription.\n\
-    You have earned a commission of {affiliate_amount} XTR!",
+                text=f"A user you have referred: <code>{user_id}</code> renewed their subscription.\nYou have earned a commission of {affiliate_amount} XTR!"
             )
         else:
-            await client.send_message(
-                chat_id=affiliate_user.affiliate_user,
-                text=
-                f"A user you have referred: <code>{user_id}</code> bought a new subscription.\n\
-    You have earned a commission of {affiliate_amount} XTR!",
-            )
+            if existing_referral:
+                await modify_earnings(
+                    affiliate_user=affiliate_user.affiliate_user,
+                    earnings=affiliate_amount,
+                )
+                await client.send_message(
+                    chat_id=affiliate_user.affiliate_user,
+                    text=f"A user you have referred: <code>{user_id}</code> bought a new subscription.\nYou have earned a commission of {affiliate_amount} XTR!"
+                )
+            else:
+                await client.send_message(
+                    chat_id=affiliate_user.affiliate_user,
+                    text=f"A user you have referred: <code>{user_id}</code> tried to reuse your referral link for a new subscription.\nNo bonus is applied as this is a repeat subscription."
+                )
 
 
 @Client.on_message(filters.command(["premium", "subscribe"]))
@@ -539,6 +550,7 @@ async def successful_payment_handler(client: Client, message: Message):
                 user_id=user_id,
                 previous_datetime=existing_transaction.first_time_payment,
                 amount=amount,
+                short_id=short_id,
                 recurring=True,
             )
 
@@ -592,6 +604,7 @@ async def successful_payment_handler(client: Client, message: Message):
         user_id=user_id,
         previous_datetime=payment_date.timestamp(),
         amount=amount,
+        short_id=short_id,
         recurring=False,
     )
 
@@ -670,10 +683,20 @@ async def send_invoice(client: Client, user_id: int, amount: int,
 
 
 @Client.on_callback_query(filters.regex(r"^refund_(\S+)"))
-@sudo_users()
-async def refund_confirmation_handler(_: Client,
-                                      callback_query: CallbackQuery):
+async def refund_confirmation_handler(client: Client, callback_query: CallbackQuery):
     short_id = callback_query.data.split("_")[1]
+    transaction = await get_transaction_by_short_id(short_id)
+
+    if not transaction:
+        await callback_query.answer("Transaction ID not found.")
+        return
+    
+    user_id = callback_query.from_user.id
+
+    if transaction.user_id != user_id and user_id != OWNER_ID and user_id not in SUDO_USERS:
+        await callback_query.answer("You do not have permission to refund this subscription.")
+        return
+
     await process_refund_confirmation(callback_query, short_id)
 
 
@@ -709,7 +732,21 @@ async def confirm_refund_handler(client: Client,
         user_id=user_id, telegram_payment_charge_id=transaction.transaction_id)
 
     if refund_success:
+        referral_info = await get_referral_by_short_id(short_id)
+        if referral_info:
+            affiliate_user_id = referral_info.affiliate_user_id
+            amount_earned = referral_info.amount_earned
+
+            await modify_earnings(affiliate_user_id, -amount_earned)
+
+            await client.send_message(
+                affiliate_user_id,
+                f"A refund has been processed for user ID <code>{user_id}</code>. "
+                f"You have lost {amount_earned} XTR from your earnings."
+            )
+
         await delete_transaction(transaction.transaction_id)
+        await delete_affiliate_user(user_id)
 
         if not await mark_refund_used(user_id):
             logger.error(
@@ -1028,6 +1065,8 @@ async def auto_send_invoices(client):
                     await client.unban_chat_member(chat_id=PREMIUM_CHANNEL, user_id=sub.user_id)
                     await delete_invite_link(user_id=sub.user_id)
                     await delete_transaction(sub.transaction_id)
+                    await delete_affiliate_user(user_id=sub.user_id)
+
                     await client.send_message(
                         chat_id=sub.user_id,
                         text=f"Your subscription {sub.short_id} has been canceled."
@@ -1082,6 +1121,7 @@ async def auto_send_invoices(client):
                 await client.unban_chat_member(chat_id=PREMIUM_CHANNEL, user_id=sub.user_id)
                 await delete_invite_link(user_id=sub.user_id)
                 await delete_transaction(sub.transaction_id)
+                await delete_affiliate_user(user_id=sub.user_id)
 
                 await client.send_message(
                     GROUP_ID,
@@ -1233,6 +1273,7 @@ async def handle_cancel_choice(client: Client, callback_query):
 
     if data.startswith("cancel_immediate_"):
         await delete_transaction(transaction.transaction_id)
+        await delete_affiliate_user(user_id)
 
     invite_link_entry = await get_invite_link(user_id)
 
@@ -1322,11 +1363,11 @@ async def stats_handler(client: Client, message: Message):
 
     for sub in subscriptions:
         if sub.plan_type == "basic":
-            total_monthly_income += sub.amount / (BASIC_PLAN_DAYS / 30.0)  # Convert to monthly
+            total_monthly_income += sub.amount / (BASIC_PLAN_DAYS / 30.0)
         elif sub.plan_type == "standard":
-            total_monthly_income += sub.amount / (STANDARD_PLAN_DAYS / 30.0)  # Convert to monthly
+            total_monthly_income += sub.amount / (STANDARD_PLAN_DAYS / 30.0)
         elif sub.plan_type == "premium":
-            total_monthly_income += sub.amount / (PREMIUM_PLAN_DAYS / 30.0)  # Convert to monthly
+            total_monthly_income += sub.amount / (PREMIUM_PLAN_DAYS / 30.0)
 
     response = (
         f"**Statistics:**\n"
