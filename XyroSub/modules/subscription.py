@@ -1315,18 +1315,27 @@ async def stats_handler(client: Client, message: Message):
 
     total_users = len(subscriptions)
     basic_users = sum(1 for sub in subscriptions if sub.plan_type == "basic")
-    standard_users = sum(1 for sub in subscriptions
-                         if sub.plan_type == "standard")
-    premium_users = sum(1 for sub in subscriptions
-                        if sub.plan_type == "premium")
+    standard_users = sum(1 for sub in subscriptions if sub.plan_type == "standard")
+    premium_users = sum(1 for sub in subscriptions if sub.plan_type == "premium")
 
-    monthly_income = sum(sub.amount for sub in subscriptions)
-    response = (f"**Statistics:**\n"
-                f"Total Paying Users: {total_users}\n"
-                f" - Basic Plan Users: {basic_users}\n"
-                f" - Standard Plan Users: {standard_users}\n"
-                f" - Premium Plan Users: {premium_users}\n"
-                f"**Monthly Income:** {monthly_income} XTR")
+    total_monthly_income = 0
+
+    for sub in subscriptions:
+        if sub.plan_type == "basic":
+            total_monthly_income += sub.amount / (BASIC_PLAN_DAYS / 30.0)  # Convert to monthly
+        elif sub.plan_type == "standard":
+            total_monthly_income += sub.amount / (STANDARD_PLAN_DAYS / 30.0)  # Convert to monthly
+        elif sub.plan_type == "premium":
+            total_monthly_income += sub.amount / (PREMIUM_PLAN_DAYS / 30.0)  # Convert to monthly
+
+    response = (
+        f"**Statistics:**\n"
+        f"Total Paying Users: {total_users}\n"
+        f" - Basic Plan Users: {basic_users}\n"
+        f" - Standard Plan Users: {standard_users}\n"
+        f" - Premium Plan Users: {premium_users}\n"
+        f"**Monthly Income:** {round(total_monthly_income, 2)} XTR"
+    )
 
     await message.reply_text(
         response,
