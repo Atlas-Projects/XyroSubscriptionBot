@@ -1,5 +1,7 @@
 # XyroSubscriptionBot
 
+[![CodeQL](https://github.com/Atlas-Projects/XyroSubscriptionBot/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Atlas-Projects/XyroSubscriptionBot/actions/workflows/github-code-scanning/codeql)
+
 **XyroSubscriptionBot** is a powerful Telegram bot designed to manage subscriptions, affiliate programs, and payments. Users can subscribe to various plans, manage their subscriptions, earn affiliate commissions, and receive discounts. The bot includes advanced administrative features for managing user access and settings.
 
 ## Key Features
