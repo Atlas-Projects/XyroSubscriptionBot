@@ -1179,20 +1179,23 @@ async def handle_create_subscription_plan_selection(
     if plan_type == "basic":
         title = "Basic Subscription - 1 Month"
         price = BASIC_PLAN_PRICE
+        recurring_interval = BASIC_PLAN_DAYS
         plan_token = "basic"
     elif plan_type == "standard":
         title = "Standard Subscription - 3 Months"
         price = STANDARD_PLAN_PRICE
+        recurring_interval = STANDARD_PLAN_DAYS
         plan_token = "standard"
     elif plan_type == "premium":
         title = "Premium Subscription - 6 Months"
         price = PREMIUM_PLAN_PRICE
+        recurring_interval = PREMIUM_PLAN_DAYS
         plan_token = "premium"
 
     short_id = str(uuid7())
     transaction_id = str(uuid7())
     payment_date = datetime.now(timezone.utc)
-    next_invoice_date = payment_date + timedelta(days=BASIC_PLAN_DAYS)
+    next_invoice_date = payment_date + timedelta(days=recurring_interval)  # Use appropriate recurring interval
 
     await save_transaction(transaction_id, short_id, user_id, price,
                            payment_date.timestamp(),
