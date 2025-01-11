@@ -1199,7 +1199,8 @@ async def handle_create_subscription_plan_selection(
 
     await save_transaction(transaction_id, short_id, user_id, price,
                            payment_date.timestamp(),
-                           next_invoice_date.timestamp(), plan_token)
+                           next_invoice_date.timestamp(), plan_token,
+                           recurring_interval)
 
     await client.send_message(
         GROUP_ID, f"🆕 <b>New Subscription Notification</b>: \n\n"
